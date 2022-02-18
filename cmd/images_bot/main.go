@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
-	run "goBotImages/internal/bot"
+	"goBotImages/internal/bot"
 	"goBotImages/internal/config"
 	"goBotImages/internal/random_image"
 	"os"
@@ -18,5 +18,6 @@ func main() {
 	}
 	c := config.ParseConfig(*configFile)
 	api := random_image.BuildRandomImageApi(c.RandomImageUrl)
-	run.StartBotPolling(c.Token, api)
+	botObj := bot.CreateBot(c.Token, api)
+	botObj.StartBotPolling()
 }
