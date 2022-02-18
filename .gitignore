@@ -1,5 +1,6 @@
 .idea
 config.yaml
+cmd/image_bot/image_bot
 
 # Binaries for programs and plugins
 *.exe
