@@ -1,26 +1,43 @@
 package main
 
 import (
-	"fmt"
-	"github.com/akamensky/argparse"
+	"context"
+	"github.com/jessevdk/go-flags"
 	"goBotImages/internal/bot"
 	"goBotImages/internal/config"
 	"goBotImages/internal/random_image"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	parser := argparse.NewParser("bot", "Run images bot")
-	configFile := parser.String("c", "config-file", &argparse.Options{Required: true, Help: "Config file", Default: "./config.yaml"})
-	if err := parser.Parse(os.Args); err != nil {
-		fmt.Print(parser.Usage(err))
+	// Parse opts and config
+	var opts struct {
+		ConfigFile string `short:"c" long:"config-file" description:"Config file name" required:"true"`
 	}
-	c := config.ParseConfig(*configFile)
+	_, err := flags.ParseArgs(&opts, os.Args)
+	if err != nil {
+		log.Fatalf("CLI args error: %v", err)
+	}
+	c := config.ParseConfig(opts.ConfigFile)
+
+	// Bind context & signals
+	ctx, cancel := context.WithCancel(context.Background())
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		log.Printf("Received %s. Terminating", sig)
+		cancel()
+	}()
+
+	// Start service
 	api := random_image.BuildRandomImageApi(c.RandomImageUrl)
 	botObj, err := bot.New(c.Token, api)
 	if err != nil {
 		log.Fatal(err)
 	}
-	botObj.StartBotPolling(10)
+	botObj.StartBotPolling(ctx, 10)
 }
