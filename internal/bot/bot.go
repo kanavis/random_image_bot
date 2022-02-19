@@ -4,6 +4,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"goBotImages/internal/random_image"
 	"log"
+	"sync"
 )
 
 type RandomImageBot struct {
@@ -11,22 +12,32 @@ type RandomImageBot struct {
 	randomImageApi *random_image.RandomImageApi
 }
 
-func CreateBot(token string, randomImageApi *random_image.RandomImageApi) *RandomImageBot {
+func New(token string, randomImageApi *random_image.RandomImageApi) (*RandomImageBot, error) {
 	botApi, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	botApi.Debug = true
 	log.Printf("Authorized on account %s", botApi.Self.UserName)
-	return &RandomImageBot{botApi: botApi, randomImageApi: randomImageApi}
+	return &RandomImageBot{botApi: botApi, randomImageApi: randomImageApi}, nil
 }
 
-func (bot *RandomImageBot) StartBotPolling() {
+func (bot *RandomImageBot) StartBotPolling(workers int) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.botApi.GetUpdatesChan(u)
+	wg := &sync.WaitGroup{}
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go bot.pollUpdatesChannel(wg, updates)
+	}
+	wg.Wait()
+}
+
+func (bot *RandomImageBot) pollUpdatesChannel(wg *sync.WaitGroup, updates tgbotapi.UpdatesChannel) {
+	defer wg.Done()
 	for update := range updates {
-		go bot.UpdateHandler(update)
+		bot.UpdateHandler(update)
 	}
 }
 
@@ -44,8 +55,7 @@ func (bot *RandomImageBot) UpdateHandler(update tgbotapi.Update) {
 	}
 	msg := tgbotapi.NewPhoto(update.Message.Chat.ID, photo)
 	msg.ReplyToMessageID = update.Message.MessageID
-	_, err = bot.botApi.Send(msg)
-	if err != nil {
+	if _, err := bot.botApi.Send(msg); err != nil {
 		log.Printf("Error sending message %v", err)
 	}
 }

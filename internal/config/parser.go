@@ -17,8 +17,7 @@ func ParseConfig(path string) *conf {
 	if err != nil {
 		log.Fatalf("Read config err: %v ", err)
 	}
-	err = yaml.Unmarshal(yamlData, &c)
-	if err != nil {
+	if err := yaml.Unmarshal(yamlData, &c); err != nil {
 		log.Fatalf("Unmarshal yaml: %v", err)
 	}
 

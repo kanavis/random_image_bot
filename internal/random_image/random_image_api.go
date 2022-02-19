@@ -1,7 +1,6 @@
 package random_image
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -15,19 +14,18 @@ func BuildRandomImageApi(url string) *RandomImageApi {
 	return &RandomImageApi{url: url}
 }
 
-func (api *RandomImageApi) GetRandomPhoto() (resp []byte, err error) {
+func (api *RandomImageApi) GetRandomPhoto() ([]byte, error) {
 	httpResp, httpErr := http.Get(api.url)
 	if httpErr != nil {
-		err = errors.New(fmt.Sprintf("Error requesting %s: %v", api.url, httpErr))
-		return
+		return nil, fmt.Errorf("error requesting %s: %w", api.url, httpErr)
 	}
 	defer httpResp.Body.Close()
 	if httpResp.StatusCode != 200 {
-		err = errors.New(fmt.Sprintf("Received non 200 response code %d", httpResp.StatusCode))
+		return nil, fmt.Errorf("received non 200 response code %d", httpResp.StatusCode)
 	}
 	resp, readErr := ioutil.ReadAll(httpResp.Body)
 	if readErr != nil {
-		err = errors.New(fmt.Sprintf("Error fetching body of %s: %v", api.url, readErr))
+		return nil, fmt.Errorf("error fetching body of %s: %w", api.url, readErr)
 	}
-	return
+	return resp, nil
 }
